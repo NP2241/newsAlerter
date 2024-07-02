@@ -105,7 +105,7 @@ async def main(keyword, start_date, end_date):
 
     if not articles:
         print("No articles to analyze.")
-        return
+        return []
 
     async with aiohttp.ClientSession() as session:
         tasks = [is_relevant_article(session, article, keyword) for article in articles]
@@ -114,14 +114,22 @@ async def main(keyword, start_date, end_date):
 
         if not relevant_articles:
             print("No relevant articles found.")
-        else:
-            full_text_tasks = [fetch_full_text(session, article['url']) for article in relevant_articles]
-            full_texts = await asyncio.gather(*full_text_tasks, return_exceptions=True)
-            for article, full_text in zip(relevant_articles, full_texts):
-                if full_text:
-                    sentiment = analyze_sentiment(full_text)
-                    if sentiment == 'NEGATIVE':
-                        print_article_info(article, sentiment)
+            return []
+
+        full_text_tasks = [fetch_full_text(session, article['url']) for article in relevant_articles]
+        full_texts = await asyncio.gather(*full_text_tasks, return_exceptions=True)
+        final_results = []
+        for article, full_text in zip(relevant_articles, full_texts):
+            if full_text:
+                sentiment = analyze_sentiment(full_text)
+                if sentiment == 'NEGATIVE':
+                    print_article_info(article, sentiment)
+                    final_results.append({
+                        'title': article['title'],
+                        'url': article['url'],
+                        'sentiment': sentiment
+                    })
+        return final_results
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
