@@ -6,7 +6,7 @@ import asyncio
 # Add the FetchingAnalysis directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'FetchingAnalysis'))
 
-import articleAnalysis
+import articleAnalysis  # Now we can import articleAnalysis
 
 app = Flask(__name__)
 
