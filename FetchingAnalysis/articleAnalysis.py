@@ -7,9 +7,6 @@ from langdetect import detect, DetectorFactory
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
 
-# Load environment variables from .env file located one directory above
-load_dotenv('../keys.env')
-
 # Fetch articles using GDELT
 def fetch_articles_from_gdelt(query, start_date, end_date):
     url = (
