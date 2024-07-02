@@ -2,6 +2,8 @@ import requests
 import sys
 from langdetect import detect, DetectorFactory
 from bs4 import BeautifulSoup
+import aiohttp
+import asyncio
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
@@ -27,17 +29,19 @@ def fetch_articles_from_gdelt(query, start_date, end_date):
 
     return articles
 
-# Extract full text from article URL
-def fetch_full_text(url):
+# Extract full text from article URL asynchronously
+async def fetch_full_text(session, url):
     try:
-        response = requests.get(url)
-        if response.status_code != 200:
-            return ""
-        soup = BeautifulSoup(response.content, 'html.parser')
-        paragraphs = soup.find_all('p')
-        full_text = ' '.join([para.get_text() for para in paragraphs])
-        return full_text
-    except:
+        async with session.get(url) as response:
+            if response.status != 200:
+                return ""
+            text = await response.text()
+            soup = BeautifulSoup(text, 'html.parser')
+            paragraphs = soup.find_all('p')
+            full_text = ' '.join([para.get_text() for para in paragraphs])
+            return full_text
+    except Exception as e:
+        print(f"Error fetching full text from {url}: {e}")
         return ""
 
 # Print article information to the terminal
@@ -47,13 +51,13 @@ def print_article_info(article):
     print('-' * 80)
 
 # Filter articles to ensure they are in English and contain the keyword
-def is_relevant_article(article, keyword):
+async def is_relevant_article(session, article, keyword):
     title = article.get('title', '').lower()
     description = article.get('description', '').lower()
     keyword = keyword.lower()
 
     try:
-        if detect(title) != 'en':
+        if title and detect(title) != 'en':
             return False
         if description and detect(description) != 'en':
             return False
@@ -65,14 +69,14 @@ def is_relevant_article(article, keyword):
         return True
 
     # Fetch full text and check if keyword is present
-    full_text = fetch_full_text(article['url']).lower()
-    if keyword in full_text:
+    full_text = await fetch_full_text(session, article['url'])
+    if keyword in full_text.lower():
         return True
 
     return False
 
 # Main function to run the analysis
-def main(keyword, start_date, end_date):
+async def main(keyword, start_date, end_date):
     # Fetch articles from GDELT
     articles = fetch_articles_from_gdelt(keyword, start_date, end_date)
 
@@ -82,8 +86,10 @@ def main(keyword, start_date, end_date):
         print("No articles to analyze.")
         return
 
-    # Filter and print all articles that meet the conditions
-    relevant_articles = [article for article in articles if is_relevant_article(article, keyword)]
+    async with aiohttp.ClientSession() as session:
+        tasks = [is_relevant_article(session, article, keyword) for article in articles]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        relevant_articles = [article for article, is_relevant in zip(articles, results) if is_relevant is True]
 
     if not relevant_articles:
         print("No relevant articles found.")
@@ -99,4 +105,4 @@ if __name__ == "__main__":
         keyword = sys.argv[1]
         start_date = sys.argv[2]
         end_date = sys.argv[3]
-        main(keyword, start_date, end_date)
+        asyncio.run(main(keyword, start_date, end_date))
