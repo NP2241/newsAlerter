@@ -4,9 +4,14 @@ from langdetect import detect, DetectorFactory
 from bs4 import BeautifulSoup
 import aiohttp
 import asyncio
+from transformers import pipeline, AutoTokenizer
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
+
+# Initialize sentiment analysis pipeline
+sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
+tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased-finetuned-sst-2-english')
 
 # Fetch articles using GDELT
 def fetch_articles_from_gdelt(query, start_date, end_date):
@@ -45,9 +50,10 @@ async def fetch_full_text(session, url):
         return ""
 
 # Print article information to the terminal
-def print_article_info(article):
+def print_article_info(article, sentiment):
     print(f"Title: {article['title']}")
     print(f"URL: {article['url']}")
+    print(f"Sentiment: {sentiment}")
     print('-' * 80)
 
 # Filter articles to ensure they are in English and contain the keyword
@@ -75,6 +81,21 @@ async def is_relevant_article(session, article, keyword):
 
     return False
 
+# Analyze sentiment of the article text, splitting into chunks if it exceeds max length
+def analyze_sentiment(text):
+    max_length = 500
+    tokens = tokenizer.encode(text, truncation=False)
+    chunks = [tokens[i:i + max_length] for i in range(0, len(tokens), max_length)]
+
+    sentiments = []
+    for chunk in chunks:
+        chunk_text = tokenizer.decode(chunk, skip_special_tokens=True)
+        result = sentiment_analyzer(chunk_text)
+        sentiments.append(result[0]['label'])
+
+    # Return 'NEGATIVE' if any chunk is negative
+    return 'NEGATIVE' if 'NEGATIVE' in sentiments else 'POSITIVE'
+
 # Main function to run the analysis
 async def main(keyword, start_date, end_date):
     # Fetch articles from GDELT
@@ -91,11 +112,16 @@ async def main(keyword, start_date, end_date):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         relevant_articles = [article for article, is_relevant in zip(articles, results) if is_relevant is True]
 
-    if not relevant_articles:
-        print("No relevant articles found.")
-    else:
-        for article in relevant_articles:
-            print_article_info(article)
+        if not relevant_articles:
+            print("No relevant articles found.")
+        else:
+            full_text_tasks = [fetch_full_text(session, article['url']) for article in relevant_articles]
+            full_texts = await asyncio.gather(*full_text_tasks, return_exceptions=True)
+            for article, full_text in zip(relevant_articles, full_texts):
+                if full_text:
+                    sentiment = analyze_sentiment(full_text)
+                    if sentiment == 'NEGATIVE':
+                        print_article_info(article, sentiment)
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
