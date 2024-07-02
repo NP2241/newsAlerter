@@ -7,18 +7,28 @@
 </head>
 <body>
 <div class="container">
-    <h1>Analysis Results ({{ results|length }})</h1>
-    <ul>
-        {% for result in results %}
-        <li>
-            <strong>Title:</strong> {{ result['title'] }}<br>
-            <strong>URL:</strong> <a href="{{ result['url'] }}">{{ result['url'] }}</a><br>
-            <strong>Sentiment:</strong> {{ result['sentiment'] }}
-        </li>
-        <br>
-        {% endfor %}
+    <h1>Analysis Results (<span id="resultsCount"></span>)</h1>
+    <ul id="resultsList">
     </ul>
     <a href="/">Back to Home</a>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const results = JSON.parse(localStorage.getItem('results')) || [];
+        document.getElementById('resultsCount').textContent = results.length;
+
+        const resultsList = document.getElementById('resultsList');
+        results.forEach(result => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+                <strong>Title:</strong> ${result.title}<br>
+                <strong>URL:</strong> <a href="${result.url}">${result.url}</a><br>
+                <strong>Sentiment:</strong> ${result.sentiment}
+            `;
+            resultsList.appendChild(listItem);
+        });
+    });
+</script>
 </body>
 </html>

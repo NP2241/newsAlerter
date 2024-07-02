@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <title>Article Sentiment Analyzer</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.min.js"></script>
 </head>
 <body>
 <div class="container">
     <h1>Article Sentiment Analyzer</h1>
-    <form action="/results" method="post">
+    <form id="analysisForm">
         <label for="keyword">Keyword:</label>
         <input type="text" id="keyword" name="keyword" required>
         <br>
@@ -18,8 +19,34 @@
         <label for="end_date">End Date (YYYYMMDD):</label>
         <input type="text" id="end_date" name="end_date" required>
         <br>
+        <p id="progressText" style="display:none;">Query Progress: <span id="progressValue">0</span>%</p>
         <button type="submit">Analyze</button>
     </form>
 </div>
+
+<script>
+    const socket = io();
+
+    document.getElementById('analysisForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const keyword = document.getElementById('keyword').value;
+        const start_date = document.getElementById('start_date').value;
+        const end_date = document.getElementById('end_date').value;
+
+        document.getElementById('progressText').style.display = 'block';
+
+        socket.emit('start_analysis', { keyword, start_date, end_date });
+    });
+
+    socket.on('progress_update', function(data) {
+        document.getElementById('progressValue').textContent = data.progress.toFixed(2);
+    });
+
+    socket.on('analysis_complete', function(data) {
+        // Store the results in local storage and navigate to the results page
+        localStorage.setItem('results', JSON.stringify(data.results));
+        window.location.href = '/results';
+    });
+</script>
 </body>
 </html>

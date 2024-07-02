@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import aiohttp
 import asyncio
 from transformers import pipeline, AutoTokenizer
+from flask_socketio import SocketIO, emit
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
@@ -119,7 +120,7 @@ async def main(keyword, start_date, end_date):
         full_text_tasks = [fetch_full_text(session, article['url']) for article in relevant_articles]
         full_texts = await asyncio.gather(*full_text_tasks, return_exceptions=True)
         final_results = []
-        for article, full_text in zip(relevant_articles, full_texts):
+        for i, (article, full_text) in enumerate(zip(relevant_articles, full_texts)):
             if full_text:
                 sentiment = analyze_sentiment(full_text)
                 if sentiment == 'NEGATIVE':
@@ -129,6 +130,9 @@ async def main(keyword, start_date, end_date):
                         'url': article['url'],
                         'sentiment': sentiment
                     })
+            # Emit progress update
+            progress = (i + 1) / len(relevant_articles) * 100
+            emit('progress_update', {'progress': progress})
         return final_results
 
 if __name__ == "__main__":
