@@ -1,6 +1,4 @@
 import requests
-from dotenv import load_dotenv
-import os
 import sys
 from langdetect import detect, DetectorFactory
 
@@ -34,7 +32,7 @@ def print_article_info(article):
     print(f"URL: {article['url']}")
     print('-' * 80)
 
-# Filter articles to ensure they are in English and contain the exact keyword phrase
+# Filter articles to ensure they are in English and contain the keyword
 def is_relevant_article(article, keyword):
     title = article.get('title', '').lower()
     description = article.get('description', '').lower()
@@ -48,23 +46,26 @@ def is_relevant_article(article, keyword):
     except:
         return False
 
-    if keyword in title or keyword in description:
-        return True
-
-    return False
+    return True
 
 # Main function to run the analysis
 def main(keyword, start_date, end_date):
     # Fetch articles from GDELT
     articles = fetch_articles_from_gdelt(keyword, start_date, end_date)
 
+    print(f"Total articles fetched: {len(articles)}")  # Debug information
+
     if not articles:
         print("No articles to analyze.")
         return
 
     # Filter and print all articles that meet the conditions
-    for article in articles:
-        if is_relevant_article(article, keyword):
+    relevant_articles = [article for article in articles if is_relevant_article(article, keyword)]
+
+    if not relevant_articles:
+        print("No relevant articles found.")
+    else:
+        for article in relevant_articles:
             print_article_info(article)
 
 if __name__ == "__main__":
