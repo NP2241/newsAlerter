@@ -8,6 +8,10 @@ import json
 # Add the FetchingAnalysis directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'FetchingAnalysis'))
 
+# Make sure that the SSL_CERT_FILE environment variable is set
+# nano ~/.zshrc
+# export SSL_CERT_FILE=/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/certifi/cacert.pem
+
 import articleAnalysis  # Now we can import articleAnalysis
 
 app = Flask(__name__)
