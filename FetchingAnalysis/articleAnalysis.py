@@ -1,6 +1,7 @@
 import requests
 import sys
 from langdetect import detect, DetectorFactory
+from bs4 import BeautifulSoup
 
 # Ensure consistent results from langdetect
 DetectorFactory.seed = 0
@@ -26,6 +27,19 @@ def fetch_articles_from_gdelt(query, start_date, end_date):
 
     return articles
 
+# Extract full text from article URL
+def fetch_full_text(url):
+    try:
+        response = requests.get(url)
+        if response.status_code != 200:
+            return ""
+        soup = BeautifulSoup(response.content, 'html.parser')
+        paragraphs = soup.find_all('p')
+        full_text = ' '.join([para.get_text() for para in paragraphs])
+        return full_text
+    except:
+        return ""
+
 # Print article information to the terminal
 def print_article_info(article):
     print(f"Title: {article['title']}")
@@ -46,7 +60,16 @@ def is_relevant_article(article, keyword):
     except:
         return False
 
-    return True
+    # Check if keyword is in title or description
+    if keyword in title or keyword in description:
+        return True
+
+    # Fetch full text and check if keyword is present
+    full_text = fetch_full_text(article['url']).lower()
+    if keyword in full_text:
+        return True
+
+    return False
 
 # Main function to run the analysis
 def main(keyword, start_date, end_date):
